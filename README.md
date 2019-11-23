@@ -4,4 +4,17 @@ A small cli wrapper with some nice settings for download things from Instagram w
 To use:
 
 clone this package with 
-`clone https://github.com/bipsen/instaloader_cli_wrapper`
+
+`$ git clone https://github.com/bipsen/instaloader_cli_wrapper`
+
+Move into the project directory 
+
+`$ cd instaloader_cli_wrapper`
+
+Install requirements
+
+`$ pip install -r requirements.txt`
+
+Run script
+
+`python main.py`
