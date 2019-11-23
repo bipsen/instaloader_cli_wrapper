@@ -7,7 +7,7 @@ Clone this repo with
 
 `$ git clone https://github.com/bipsen/instaloader_cli_wrapper`
 
-Move into the project directory 
+Move to project directory 
 
 `$ cd instaloader_cli_wrapper`
 
@@ -17,4 +17,4 @@ Install requirements
 
 Run script
 
-`python main.py`
+`$ python main.py`
