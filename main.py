@@ -1,3 +1,7 @@
+"""
+This is the main script. Pick provides a small CLI.
+"""
+
 from datetime import datetime
 from itertools import dropwhile, takewhile
 import sys
@@ -188,18 +192,18 @@ post_attr = [
     'location'
 ]
 
-# Initialize our main dataframe and comment list
+# Initialize main dataframe and comment list
 data = pd.DataFrame(columns=post_attr)
 all_comments = []
 
 # Download data
 while True:
     try:
-        # Applt time lim to post generator
+        # Apply time limit to post generator
         if period_only:
             posts = period_reduce()
 
-        # Apply n lim to post generator, like posts[:n_post_lim]
+        # Apply n limit to post generator, like posts[:n_post_lim]
         if n_post_only:
             posts = (x for _, x in zip(range(n_post_lim), posts))
 
@@ -253,7 +257,7 @@ data[['caption_hashtags',
               lambda lst: ','.join(lst)
           )
 
-# Turn location column into dicts and then to seperate columns
+# Turn location column into dicts, then seperate columns
 data['location'] = data['location'].apply(parse_locations)
 data = pd.concat([data, data['location'].apply(pd.Series)], axis=1)
 data = data.drop('location', errors='ignore')
