@@ -1,5 +1,5 @@
 # instaloader_cli_wrapper
-A small cli wrapper with some nice settings for download things from Instagram with the instaloder package.
+A small cli wrapper with some nice settings for downloading things from Instagram with the instaloader package.
 
 ## Instructions
 
@@ -18,3 +18,5 @@ Install requirements
 Run script
 
 `$ python main.py`
+
+Follow the cli instructions.
