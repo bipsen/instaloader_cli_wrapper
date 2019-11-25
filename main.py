@@ -2,6 +2,7 @@
 This is the main script. Pick provides a small CLI.
 """
 
+from pathlib import Path
 from datetime import datetime
 from itertools import dropwhile, takewhile
 import sys
@@ -146,7 +147,9 @@ if LOGIN:
 target = choose_target(LOGIN)
 
 # What do you want to query for?
-query = input(f'Which {target} do you want to search for? \n')
+query_inp = input(f'''Which {target} do you want to search for? 
+Comma seperate if multiple like nature,climate,weather\n''')
+queries = query_inp.split(',') 
 
 # Only in time period?
 period_only = query_yes_no('''
@@ -156,19 +159,10 @@ Do you want to limit your search to a specific period?
 
 # Only n posts?
 n_post_lim = None  # Default
-n_post_only = query_yes_no("Do you limit your search to N number of posts?",
+n_post_only = query_yes_no("Do you want to limit your search to N number of posts?",
                            default="no")
 if n_post_only:
     n_post_lim = ask_n_post_lim()
-
-# Get posts based on user settings
-if target == 'public profile':
-    profile = Profile.from_username(L.context, query)
-    posts = profile.get_posts()
-if target == 'hashtag':
-    posts = L.get_hashtag_posts(query)
-if target == 'location id':
-    posts = L.get_location_posts(query)
 
 # These are the post attributes that will become dataframe columns
 post_attr = [
@@ -192,77 +186,90 @@ post_attr = [
     'location'
 ]
 
-# Initialize main dataframe and comment list
-data = pd.DataFrame(columns=post_attr)
-all_comments = []
+for query in queries:
+    # Get posts based on user settings
+    if target == 'public profile':
+        profile = Profile.from_username(L.context, query)
+        posts = profile.get_posts()
+    if target == 'hashtag':
+        posts = L.get_hashtag_posts(query)
+    if target == 'location id':
+        posts = L.get_location_posts(query)
 
-# Download data
-while True:
-    try:
-        # Apply time limit to post generator
-        if period_only:
-            posts = period_reduce()
+    # Initialize main dataframe and comment list
+    data = pd.DataFrame(columns=post_attr)
+    all_comments = []
 
-        # Apply n limit to post generator, like posts[:n_post_lim]
-        if n_post_only:
-            posts = (x for _, x in zip(range(n_post_lim), posts))
+    # Download data
+    while True:
+        try:
+            # Apply time limit to post generator
+            if period_only:
+                posts = period_reduce()
 
-        print('\nBeginning harvest. Ctrl-C to stop.\n\n')
-        for post in posts:
-            L.download_post(post, target=query)
-            post_info = [getattr(post, attr) for attr in post_attr]
+            # Apply n limit to post generator, like posts[:n_post_lim]
+            if n_post_only:
+                posts = (x for _, x in zip(range(n_post_lim), posts))
 
-            # Put postinfo in dataframe
-            data = data.append(pd.Series(
-                dict(zip(data.columns, post_info))),
-                               ignore_index=True)
+            print(f'\nNow harvesting {query}. Ctrl-C to stop.\n\n')
+            for post in posts:
+                L.download_post(post, target=query)
+                post_info = [getattr(post, attr) for attr in post_attr]
 
-            # Get comments
-            if post.comments > 0:
-                for comment in post.get_comments():
-                    all_comments.append({
-                        'post_shortcode': post.shortcode,
-                        'answer_to_comment': '',
-                        'created_at_utc': comment.created_at_utc,
-                        'id': comment.id,
-                        'likes_count': comment.likes_count,
-                        'owner': comment.owner.userid,
-                        'text': comment.text})
-                    if hasattr(comment, 'answers'):
-                        for answer in comment.answers:
-                            all_comments.append({
-                                'post_shortcode': post.shortcode,
-                                'answer_to_comment': comment.id,
-                                'created_at_utc': answer.created_at_utc,
-                                'id': answer.id,
-                                'likes_count': answer.likes_count,
-                                'owner': answer.owner.userid,
-                                'text': answer.text})
-        break
-    except KeyboardInterrupt:
-        break
+                # Put postinfo in dataframe
+                data = data.append(pd.Series(
+                    dict(zip(data.columns, post_info))),
+                                   ignore_index=True)
 
+                # Get comments
+                if post.comments > 0:
+                    for comment in post.get_comments():
+                        all_comments.append({
+                            'post_shortcode': post.shortcode,
+                            'answer_to_comment': '',
+                            'created_at_utc': comment.created_at_utc,
+                            'id': comment.id,
+                            'likes_count': comment.likes_count,
+                            'owner': comment.owner.userid,
+                            'text': comment.text})
+                        if hasattr(comment, 'answers'):
+                            for answer in comment.answers:
+                                all_comments.append({
+                                    'post_shortcode': post.shortcode,
+                                    'answer_to_comment': comment.id,
+                                    'created_at_utc': answer.created_at_utc,
+                                    'id': answer.id,
+                                    'likes_count': answer.likes_count,
+                                    'owner': answer.owner.userid,
+                                    'text': answer.text})
+            break
+        except KeyboardInterrupt:
+            break
 
-"""
-CLEANING SECTION
-"""
-
-# Turn list columns into strings
-data[['caption_hashtags',
-      'caption_mentions',
-      'tagged_users']] = data[[
-          'caption_hashtags',
+    # Turn list columns into strings
+    data[['caption_hashtags',
           'caption_mentions',
-          'tagged_users']].applymap(
-              lambda lst: ','.join(lst)
-          )
+          'tagged_users']] = data[[
+              'caption_hashtags',
+              'caption_mentions',
+              'tagged_users']].applymap(
+                  lambda lst: ','.join(lst)
+              )
 
-# Turn location column into dicts, then seperate columns
-data['location'] = data['location'].apply(parse_locations)
-data = pd.concat([data, data['location'].apply(pd.Series)], axis=1)
-data = data.drop('location', errors='ignore')
+    # Turn location column into dicts, then seperate columns
+    data['location'] = data['location'].apply(parse_locations)
+    data = pd.concat([data, data['location'].apply(pd.Series)], axis=1)
+    data = data.drop('location', errors='ignore')
 
-# Save data and comments
-data.to_csv('output.csv', index=False)
-comments_df = pd.DataFrame(all_comments)
-comments_df.to_csv('comments.csv')
+    # Make comments dataframe
+    comments_df = pd.DataFrame(all_comments)
+
+    # Save data and comments
+    outpath = Path('output')
+    outpath.mkdir(exist_ok=True)
+
+    data_filepath = outpath / f'output_{query}.csv'
+    comments_filepath = outpath / f'comments_{query}.csv'
+
+    data.to_csv(data_filepath, index=False)
+    comments_df.to_csv(comments_filepath)
