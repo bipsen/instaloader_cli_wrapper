@@ -9,7 +9,7 @@ import sys
 import pandas as pd
 from pick import pick
 import instaloader
-from instaloader import Profile
+from instaloader import Profile, InstaloaderException
 
 
 def query_yes_no(question, default="yes"):
@@ -243,7 +243,8 @@ for query in queries:
                                     'owner': answer.owner.userid,
                                     'text': answer.text})
             break
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, InstaloaderException) as e:
+            print(e)
             break
 
     # Turn list columns into strings
